@@ -6,6 +6,7 @@ import { profile } from "@/lib/data";
 const links = [
   { href: "#about", id: "about", label: "About" },
   { href: "#skills", id: "skills", label: "Skills" },
+  { href: "#ai", id: "ai", label: "AI" },
   { href: "#experience", id: "experience", label: "Experience" },
   { href: "#projects", id: "projects", label: "Projects" },
   { href: "#contact", id: "contact", label: "Contact" },

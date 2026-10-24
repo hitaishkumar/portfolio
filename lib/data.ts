@@ -105,6 +105,76 @@ export const skills: { category: string; items: string[] }[] = [
   },
 ];
 
+/**
+ * AI tooling & orchestration fluency — how AI is woven into the engineering
+ * workflow, framed as capabilities rather than a tool dump.
+ */
+export type AiGroup = {
+  title: string;
+  blurb: string;
+  items: string[];
+};
+
+export const aiWorkflow: {
+  intro: string;
+  groups: AiGroup[];
+} = {
+  intro:
+    "AI is a force-multiplier in how I ship, not a novelty. I treat agents like junior engineers I delegate to and review — scaffolding services, writing tests, spelunking unfamiliar codebases, and drafting design docs — while I stay accountable for architecture, correctness, and the parts that actually require judgment. The leverage comes from orchestration: wiring tools, context, and verification loops so the AI does the toil and I do the thinking.",
+  groups: [
+    {
+      title: "Agentic Coding",
+      blurb:
+        "Day-to-day pair-programming with autonomous and in-editor agents, driving them with tight specs and fast feedback loops rather than one-shot prompts.",
+      items: [
+        "Claude Code",
+        "Cursor",
+        "GitHub Copilot",
+        "Windsurf",
+        "Aider",
+        "Codex CLI",
+      ],
+    },
+    {
+      title: "Models & Reasoning",
+      blurb:
+        "Model-agnostic by default — I route tasks to the right model: long-context reasoning for design, fast models for edits, local models for private code.",
+      items: [
+        "Claude (Opus / Sonnet)",
+        "GPT-4o / o-series",
+        "Gemini 1.5 Pro",
+        "Llama 3 (local)",
+        "Ollama",
+      ],
+    },
+    {
+      title: "Orchestration & Context",
+      blurb:
+        "Building the plumbing that makes agents useful on real codebases: tool access, retrieval, and structured context via the Model Context Protocol.",
+      items: [
+        "MCP (Model Context Protocol)",
+        "LangGraph",
+        "RAG Pipelines",
+        "Vector Search",
+        "Function / Tool Calling",
+        "Structured Outputs",
+      ],
+    },
+    {
+      title: "Delivery & Guardrails",
+      blurb:
+        "Keeping AI-assisted output honest — evals, review gates, and CI so generated code is held to the same bar as anything I write by hand.",
+      items: [
+        "AI Code Review",
+        "Prompt / Context Engineering",
+        "Eval Harnesses",
+        "Token / Cost Budgeting",
+        "Human-in-the-Loop Review",
+      ],
+    },
+  ],
+};
+
 export type Experience = {
   title: string;
   company: string;
@@ -246,15 +316,6 @@ export const projects: Project[] = [
       "Implementing a relational database from scratch in Go to internalize storage-engine internals — a buffer pool manager with an LRU replacer, slotted-page layout (header / slots / tuples), and a disk manager over paged files.",
     ],
     tags: ["Go", "Databases", "Storage Engine", "Systems"],
-  },
-  {
-    name: "gyno — Notification Orchestration UI",
-    subtitle: "Open-source control plane for omni-channel messaging",
-    repo: "https://github.com/hitaishkumar/gyno",
-    points: [
-      "Built a React + TypeScript control plane for a notification-orchestration system (inspired by Fyno.io) — vendor integrations, omni-channel chained flows (SMS → WhatsApp → Email fallback), reusable templates, and a visual flow editor.",
-    ],
-    tags: ["TypeScript", "React", "Vite", "Notifications"],
   },
 ];
 

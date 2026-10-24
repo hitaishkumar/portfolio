@@ -62,11 +62,6 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 export function Projects() {
-  // Short, single-point projects get stacked together so they don't each
-  // occupy a tall, mostly-empty column.
-  const big = projects.filter((p) => p.points.length > 1);
-  const small = projects.filter((p) => p.points.length <= 1);
-
   return (
     <section
       id="projects"
@@ -81,20 +76,15 @@ export function Projects() {
       />
       <div className="container relative z-10">
         <Reveal>
-          <SectionHeading eyebrow="04 — Projects" title="Things I've built" />
+          <SectionHeading eyebrow="05 — Projects" title="Things I've built" />
         </Reveal>
-        <Reveal stagger className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {big.map((project) => (
+        <Reveal
+          stagger
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {projects.map((project) => (
             <ProjectCard key={project.name} project={project} />
           ))}
-          {/* the short projects share one column, stacked as two rows */}
-          {small.length > 0 && (
-            <div className="flex flex-col gap-4">
-              {small.map((project) => (
-                <ProjectCard key={project.name} project={project} />
-              ))}
-            </div>
-          )}
         </Reveal>
       </div>
     </section>

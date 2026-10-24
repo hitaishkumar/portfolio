@@ -11,7 +11,7 @@ export function Experience() {
     <section id="experience" className="scroll-mt-20 py-20">
       <div className="container">
         <Reveal>
-          <SectionHeading eyebrow="03 — Experience" title="Where I've worked" />
+          <SectionHeading eyebrow="04 — Experience" title="Where I've worked" />
         </Reveal>
       <Reveal stagger className="space-y-10">
         {experiences.map((exp) => (

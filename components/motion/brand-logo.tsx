@@ -24,6 +24,14 @@ import {
   siOpensearch,
   siReact,
   siVite,
+  siClaude,
+  siGithubcopilot,
+  siCursor,
+  siOllama,
+  siGooglegemini,
+  siMeta,
+  siLangchain,
+  siWindsurf,
   type SimpleIcon,
 } from "simple-icons";
 import {
@@ -43,6 +51,14 @@ import {
   Activity,
   Scale,
   KeyRound,
+  Sparkles,
+  Bot,
+  Brain,
+  GitPullRequest,
+  SearchCode,
+  Coins,
+  UserCheck,
+  Braces,
   type LucideIcon,
 } from "lucide-react";
 
@@ -96,6 +112,16 @@ const BRAND: Record<string, SimpleIcon> = {
   OpenSearch: siOpensearch,
   React: siReact,
   Vite: siVite,
+  // AI tools
+  "Claude Code": siClaude,
+  "Claude (Opus / Sonnet)": siClaude,
+  Cursor: siCursor,
+  "GitHub Copilot": siGithubcopilot,
+  Windsurf: siWindsurf,
+  Ollama: siOllama,
+  "Gemini 1.5 Pro": siGooglegemini,
+  "Llama 3 (local)": siMeta,
+  LangGraph: siLangchain,
   SQL: siMysql, // generic SQL -> database mark
 };
 
@@ -157,6 +183,21 @@ const CONCEPT: Record<string, { icon: LucideIcon; color: string }> = {
   "Cedar Authorization": { icon: ShieldCheck, color: "#10B981" },
   "Multi-Tenant Isolation": { icon: ShieldCheck, color: "#10B981" },
   "Data Compliance": { icon: Scale, color: "#10B981" },
+
+  // AI tooling & orchestration (fuchsia)
+  Aider: { icon: Bot, color: "#D946EF" },
+  "Codex CLI": { icon: Terminal, color: "#D946EF" },
+  "GPT-4o / o-series": { icon: Sparkles, color: "#D946EF" },
+  "MCP (Model Context Protocol)": { icon: Network, color: "#D946EF" },
+  "RAG Pipelines": { icon: Workflow, color: "#D946EF" },
+  "Vector Search": { icon: SearchCode, color: "#D946EF" },
+  "Function / Tool Calling": { icon: Braces, color: "#D946EF" },
+  "Structured Outputs": { icon: Braces, color: "#D946EF" },
+  "AI Code Review": { icon: GitPullRequest, color: "#D946EF" },
+  "Prompt / Context Engineering": { icon: Brain, color: "#D946EF" },
+  "Eval Harnesses": { icon: Gauge, color: "#D946EF" },
+  "Token / Cost Budgeting": { icon: Coins, color: "#D946EF" },
+  "Human-in-the-Loop Review": { icon: UserCheck, color: "#D946EF" },
 };
 
 function isNearBlack(hex: string) {

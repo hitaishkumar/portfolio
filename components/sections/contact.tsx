@@ -18,7 +18,7 @@ export function Contact() {
       />
       <div className="container relative z-10">
         <Reveal>
-          <SectionHeading eyebrow="05 — Contact" title="Let's work together" />
+          <SectionHeading eyebrow="06 — Contact" title="Let's work together" />
         </Reveal>
       <Reveal className="max-w-2xl">
         <p className="text-base leading-relaxed text-muted-foreground">
