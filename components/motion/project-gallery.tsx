@@ -4,6 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ProjectShot } from "@/lib/data";
+import { withBasePath } from "@/lib/utils";
 
 /**
  * Screenshot gallery for a project card: a horizontal thumbnail strip that
@@ -55,7 +56,7 @@ export function ProjectGallery({ shots }: { shots: ProjectShot[] }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={shot.src}
+              src={withBasePath(shot.src)}
               alt={shot.caption}
               loading="lazy"
               className="h-full w-full object-cover object-left-top transition-transform duration-200 group-hover:scale-105"
@@ -123,7 +124,7 @@ export function ProjectGallery({ shots }: { shots: ProjectShot[] }) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={shots[open].src}
+                src={withBasePath(shots[open].src)}
                 alt={shots[open].caption}
                 className="max-h-[80vh] w-auto rounded-lg border border-white/10 object-contain shadow-2xl"
               />

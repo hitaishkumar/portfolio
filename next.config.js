@@ -2,6 +2,9 @@
 
 // Set STATIC_EXPORT=true (e.g. for GitHub Pages) to produce a fully static `out/` dir.
 const isStaticExport = process.env.STATIC_EXPORT === "true";
+// When hosting under user.github.io/<repo>, set BASE_PATH="/<repo>" so routes
+// AND static assets (/_next/...) are prefixed correctly.
+const basePath = process.env.BASE_PATH || "";
 
 const nextConfig = {
   reactStrictMode: true,
@@ -9,8 +12,8 @@ const nextConfig = {
     ? {
         output: "export",
         images: { unoptimized: true },
-        // Set BASE_PATH to your repo name when hosting at user.github.io/<repo>
-        basePath: process.env.BASE_PATH || "",
+        basePath,
+        assetPrefix: basePath || undefined,
       }
     : {}),
 };

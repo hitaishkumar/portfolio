@@ -29,6 +29,8 @@ jobs:
           STATIC_EXPORT: "true"
           # If deploying to https://<user>.github.io/<repo>, set BASE_PATH to "/<repo>"
           BASE_PATH: ${{ vars.BASE_PATH }}
+          # Same value, exposed to the client bundle for raw <img>/<a> assets
+          NEXT_PUBLIC_BASE_PATH: ${{ vars.BASE_PATH }}
         run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

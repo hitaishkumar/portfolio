@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { withBasePath } from "@/lib/utils";
+
 /**
  * Education logo badge: shows the school's logo image when available, and
  * gracefully falls back to a monogram badge if no logo is set OR the image
@@ -24,7 +26,7 @@ export function EduLogo({
       <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={logo}
+          src={withBasePath(logo)}
           alt={alt}
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}

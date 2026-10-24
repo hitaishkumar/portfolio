@@ -4,6 +4,7 @@ import { Counter } from "@/components/motion/counter";
 import { RaftCluster } from "@/components/motion/raft-cluster";
 import { Button } from "@/components/ui/button";
 import { highlights, profile } from "@/lib/data";
+import { withBasePath } from "@/lib/utils";
 import { ArrowDown, FileText, Github, Linkedin, Mail } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 
@@ -96,7 +97,7 @@ export function Hero() {
             </Button>
             <Button variant="outline" asChild>
               <a
-                href={profile.resumeUrl}
+                href={withBasePath(profile.resumeUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
