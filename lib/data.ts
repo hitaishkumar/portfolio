@@ -4,12 +4,12 @@ export const profile = {
   role: "Senior Software Engineer",
   tagline: "Backend & Distributed Systems Engineer",
   summary:
-    "I design and operate high-throughput, event-driven distributed systems in Go. I've built platforms handling 600M+ communications and 10M+ users end-to-end — from design docs through live-site operations — with a focus on reliability, concurrency, and cost-efficient scale.",
+    "I design and operate high-throughput, event-driven distributed systems in Go. At KFINTECH — one of India's largest regulated fintech infrastructure providers — I've built platforms handling 600M+ communications and 10M+ users end-to-end, from design docs through live-site operations. Working in finance has made correctness, auditability, and zero-data-loss defaults second nature — exactly the discipline regulated environments demand.",
   location: "Bhubaneswar, Odisha, India",
   email: "hitaishkumar7587@gmail.com",
   phone: "+91 98610 82561",
   linkedin: "https://www.linkedin.com/in/davythedev",
-  github: "https://github.com/davythedev",
+  github: "https://github.com/hitaishkumar",
   resumeUrl: "/Hitaish_Kumar_Resume.pdf",
 };
 
@@ -237,6 +237,24 @@ export const projects: Project[] = [
       "Built a developer tool generating type-safe Node.js and Go API boilerplate via LLM APIs, focusing on structured code generation, consistency, and secure validation of generated code.",
     ],
     tags: ["Node.js", "Go", "LLM APIs", "Codegen"],
+  },
+  {
+    name: "hdb — RDBMS in Go",
+    subtitle: "Open-source storage-engine internals",
+    repo: "https://github.com/hitaishkumar/hdb",
+    points: [
+      "Implementing a relational database from scratch in Go to internalize storage-engine internals — a buffer pool manager with an LRU replacer, slotted-page layout (header / slots / tuples), and a disk manager over paged files.",
+    ],
+    tags: ["Go", "Databases", "Storage Engine", "Systems"],
+  },
+  {
+    name: "gyno — Notification Orchestration UI",
+    subtitle: "Open-source control plane for omni-channel messaging",
+    repo: "https://github.com/hitaishkumar/gyno",
+    points: [
+      "Built a React + TypeScript control plane for a notification-orchestration system (inspired by Fyno.io) — vendor integrations, omni-channel chained flows (SMS → WhatsApp → Email fallback), reusable templates, and a visual flow editor.",
+    ],
+    tags: ["TypeScript", "React", "Vite", "Notifications"],
   },
 ];
 

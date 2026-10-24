@@ -22,6 +22,8 @@ import {
   siGin,
   siOpenapiinitiative,
   siOpensearch,
+  siReact,
+  siVite,
   type SimpleIcon,
 } from "simple-icons";
 import {
@@ -92,6 +94,8 @@ const BRAND: Record<string, SimpleIcon> = {
   Grafana: siGrafana,
   OpenAPI: siOpenapiinitiative,
   OpenSearch: siOpensearch,
+  React: siReact,
+  Vite: siVite,
   SQL: siMysql, // generic SQL -> database mark
 };
 
@@ -138,6 +142,10 @@ const CONCEPT: Record<string, { icon: LucideIcon; color: string }> = {
   Indexing: { icon: Database, color: "#0EA5E9" },
   Partitioning: { icon: Layers, color: "#0EA5E9" },
   "Query Optimization": { icon: Gauge, color: "#0EA5E9" },
+  Databases: { icon: Database, color: "#0EA5E9" },
+  "Storage Engine": { icon: Layers, color: "#0EA5E9" },
+  Systems: { icon: Cpu, color: "#8B5CF6" },
+  Notifications: { icon: Workflow, color: "#8B5CF6" },
 
   // Observability (amber)
   "Structured Logging": { icon: FileCode, color: "#F59E0B" },

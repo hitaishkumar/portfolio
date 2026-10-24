@@ -38,6 +38,17 @@ export function About() {
                 analysis. I care about systems that are reliable, observable,
                 and cost-efficient at scale.
               </p>
+              <p>
+                KFINTECH is one of India&apos;s largest registered transfer
+                agents and fintech infrastructure providers — the kind of
+                environment where a dropped message or a double-send isn&apos;t
+                a bug, it&apos;s a compliance incident. Years of building there
+                have made audit trails, exactly-once delivery, graceful
+                degradation, and zero-data-loss shutdowns my defaults rather
+                than afterthoughts. That instinct for correctness under
+                regulatory scrutiny translates directly to any domain where
+                reliability is non-negotiable — payments, healthcare, infra.
+              </p>
               <p className="flex items-center gap-2 text-sm">
                 <MapPin className="h-4 w-4" />
                 {profile.location}
