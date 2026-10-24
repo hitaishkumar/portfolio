@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BITS Pilani emblem">
+  <defs>
+    <linearGradient id="bits" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5B6CFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <!-- shield -->
+  <path d="M32 3 L55 11 V30 C55 45 45 55 32 61 C19 55 9 45 9 30 V11 Z"
+        fill="url(#bits)"/>
+  <path d="M32 3 L55 11 V30 C55 45 45 55 32 61 C19 55 9 45 9 30 V11 Z"
+        fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5"/>
+  <!-- initials -->
+  <text x="32" y="29" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="15" font-weight="700" fill="#ffffff" letter-spacing="0.5">BITS</text>
+  <text x="32" y="43" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="7.5" font-weight="600" fill="#ffffff" fill-opacity="0.85" letter-spacing="1">PILANI</text>
+</svg>

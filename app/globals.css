@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 40%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 243 75% 59%;
+    --radius: 0.6rem;
+
+    /* Accent gradient stops — distributed-systems palette */
+    --accent-1: 243 75% 59%; /* indigo */
+    --accent-2: 199 89% 48%; /* cyan   */
+    --accent-3: 271 81% 56%; /* violet */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Subtle grid background for the hero */
+.bg-grid {
+  background-image: linear-gradient(
+      to right,
+      hsl(var(--accent-1) / 0.12) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, hsl(var(--accent-1) / 0.12) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 60%, transparent 100%);
+}
+
+/* Fade the sim toward its left + edges so it blends behind the section. */
+.sim-bg {
+  -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 18%,
+      #000 100%
+    ),
+    radial-gradient(ellipse 130% 110% at 72% 50%, #000 75%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 18%,
+      #000 100%
+    ),
+    radial-gradient(ellipse 130% 110% at 72% 50%, #000 75%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* Full-bleed variant (side="full"): symmetric, gentle edge fade — no left cutoff. */
+.sim-bg-full {
+  -webkit-mask-image: radial-gradient(
+    ellipse 95% 90% at 50% 50%,
+    #000 70%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 95% 90% at 50% 50%,
+    #000 70%,
+    transparent 100%
+  );
+}
+
+/* Scrim behind hero text to keep it readable over the live simulation. */
+.hero-scrim {
+  background: linear-gradient(
+    to right,
+    hsl(var(--background) / 0.85) 0%,
+    hsl(var(--background) / 0.5) 30%,
+    hsl(var(--background) / 0) 52%,
+    hsl(var(--background) / 0) 100%
+  );
+}
+
+/* Gradient text accent */
+.text-gradient {
+  background-image: linear-gradient(
+    110deg,
+    hsl(var(--accent-1)),
+    hsl(var(--accent-2)),
+    hsl(var(--accent-3))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Animated gradient text (slow shimmer) */
+.text-gradient-animated {
+  background-image: linear-gradient(
+    110deg,
+    hsl(var(--accent-1)),
+    hsl(var(--accent-2)),
+    hsl(var(--accent-3)),
+    hsl(var(--accent-1))
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s ease infinite;
+}
+
+@keyframes gradient-pan {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Colored left accent bar for section headings */
+.accent-bar {
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--accent-1)),
+    hsl(var(--accent-2))
+  );
+}
+
+/* Accent-tinted badge */
+.badge-accent {
+  background-color: hsl(var(--accent-1) / 0.12);
+  color: hsl(var(--accent-1));
+  border: 1px solid hsl(var(--accent-1) / 0.25);
+}
+
+/* Card hover — subtle border light-up, no movement */
+.card-lift {
+  position: relative;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.card-lift:hover {
+  border-color: hsl(var(--accent-1) / 0.65);
+  box-shadow: inset 0 0 0 1px hsl(var(--accent-1) / 0.35);
+}
+
+/* Glass surface — translucent so the background sim shows through. */
+.glass {
+  background-color: hsl(var(--card) / 0.55);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  border-color: hsl(var(--border) / 0.7);
+}
+
+/* Animated underline for nav links */
+.nav-underline {
+  position: relative;
+}
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.35rem;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-underline:hover::after {
+  transform: scaleX(1);
+}
+/* persistent underline for the active (scroll-spied) nav link */
+.nav-active::after {
+  transform: scaleX(1);
+  background: hsl(var(--accent-1));
+}
+
+/* Infinite marquee carousel (seamless loop via duplicated track). */
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 32s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* track holds two copies; shift by half for a seamless loop */
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-lift,
+  .nav-underline::after {
+    transition: none;
+  }
+  .marquee-track {
+    animation: none;
+  }
+  .text-gradient-animated {
+    animation: none;
+  }
+}
