@@ -1,7 +1,7 @@
 "use client";
 
 import { Counter } from "@/components/motion/counter";
-import { RaftCluster } from "@/components/motion/raft-cluster";
+import { RaftFigure } from "@/components/motion/raft-figure";
 import { Button } from "@/components/ui/button";
 import { highlights, profile } from "@/lib/data";
 import { withBasePath } from "@/lib/utils";
@@ -36,11 +36,8 @@ export function Hero() {
       />
 
       {/* Raft consensus cluster — canonical diagram, ambient on the right */}
-      <div
-        className="sim-bg pointer-events-none absolute inset-y-0 right-0 hidden w-[64%] opacity-90 lg:block"
-        aria-hidden
-      >
-        <RaftCluster />
+      <div className="sim-bg pointer-events-none absolute inset-y-0 right-0 hidden w-[64%] opacity-90 lg:block">
+        <RaftFigure />
       </div>
       {/* scrim: keep the left-side text readable over the sim */}
       <div

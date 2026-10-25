@@ -2,20 +2,27 @@
 
 import * as React from "react";
 import { rgba, useSimPalette, type RGB } from "@/components/motion/sim-core";
-import type { SimProps } from "@/components/motion/sim-layer";
+import type { SimProps, SimControl } from "@/components/motion/sim-layer";
 
 /* Vector Clocks — a space-time diagram. P processes run as vertical lifelines;
  * local events bump the process's own component; messages carry a vector
  * timestamp and the receiver takes the component-wise max, then +1. */
 
-const P = 3;
-
 type Ev = { proc: number; y: number; vec: number[]; kind: "local" | "send" | "recv" };
 type Msg = { fromProc: number; toProc: number; y0: number; y1: number; vec: number[] };
 
-export function VectorClockSim({ running, onStatus }: SimProps) {
+export const vectorClockControls: SimControl[] = [
+  { key: "procs", label: "processes", min: 2, max: 5, default: 3 },
+  { key: "rate", label: "events/s", min: 1, max: 6, default: 2 },
+];
+
+export function VectorClockSim({ running, onStatus, params }: SimProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const palette = useSimPalette();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -30,12 +37,27 @@ export function VectorClockSim({ running, onStatus }: SimProps) {
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
     const lanes: number[] = [];
 
-    const clocks = Array.from({ length: P }, () => Array(P).fill(0));
+    let P = Math.round(paramsRef.current?.procs ?? 3);
+    let clocks = Array.from({ length: P }, () => Array(P).fill(0));
     const events: Ev[] = [];
     const msgs: Msg[] = [];
     let scroll = 0;
     let nextAt = 0;
     let msgCount = 0;
+
+    function layoutLanes() {
+      lanes.length = 0;
+      for (let i = 0; i < P; i++)
+        lanes.push(width * (0.3 + (i * 0.4) / Math.max(1, P - 1)));
+    }
+
+    function rebuild(newP: number) {
+      P = newP;
+      clocks = Array.from({ length: P }, () => Array(P).fill(0));
+      events.length = 0;
+      msgs.length = 0;
+      layoutLanes();
+    }
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -45,21 +67,25 @@ export function VectorClockSim({ running, onStatus }: SimProps) {
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      lanes.length = 0;
-      for (let i = 0; i < P; i++) lanes.push(width * (0.3 + (i * 0.4) / (P - 1)));
+      layoutLanes();
     }
     resize();
 
     const palColor = (i: number): RGB => {
-      const p = palette.current;
-      return [p.accent1, p.accent2, p.accent3][i % 3];
+      const pal = palette.current;
+      return [pal.accent1, pal.accent2, pal.accent3][i % 3];
     };
 
     function tick(dt: number) {
+      // live params: rebuild if process count changed
+      const wantP = Math.round(paramsRef.current?.procs ?? 3);
+      if (wantP !== P) rebuild(wantP);
+      const rate = Math.max(0.5, paramsRef.current?.rate ?? 2);
+
       scroll += dt * 26; // px/sec downward flow
       nextAt -= dt;
       if (nextAt <= 0) {
-        nextAt = 0.9 + Math.random() * 0.7;
+        nextAt = 1 / rate;
         const proc = Math.floor(Math.random() * P);
         const y = scroll + height + 20;
         // decide: local event or a send to another process

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { rgba, useSimPalette } from "@/components/motion/sim-core";
-import type { SimProps } from "@/components/motion/sim-layer";
+import type { SimProps, SimControl } from "@/components/motion/sim-layer";
 
 /* LSM-tree compaction (horizontal) — writes fill a memtable on the LEFT; when
  * full it flushes to an L0 SSTable; when a level has too many segments they
@@ -21,9 +21,21 @@ type Seg = {
   age: number;
 };
 
-export function LsmSim({ running, onStatus }: SimProps) {
+export const lsmControls: SimControl[] = [
+  { key: "writeRate", label: "writes/s", min: 1, max: 14, default: 8 },
+  { key: "fanout", label: "fanout", min: 2, max: 6, default: 3 },
+];
+
+/* Colors derive from the active theme palette each frame (role-mapped per
+ * level) so the whole sim re-skins with the site while staying readable. */
+
+export function LsmSim({ running, onStatus, params }: SimProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const palette = useSimPalette();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -38,7 +50,8 @@ export function LsmSim({ running, onStatus }: SimProps) {
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const LEVELS = 3;
-    const FANOUT = [4, 3, 2]; // max segments per level before compaction
+    // fanout per level (max segments before compaction) — tunable live
+    const FANOUT = [4, 3, 2];
     let memFill = 0;
     let segs: Seg[] = [];
     let writeAt = 0;
@@ -46,12 +59,12 @@ export function LsmSim({ running, onStatus }: SimProps) {
     let compactions = 0;
 
     // Horizontal layout: memtable col, then L0 / L1 / L2 columns left → right.
-    const memX = () => width * 0.12;
-    // level column x positions spread across the remaining width
+    const memX = () => width * 0.08;
+    // level column x positions spread across (nearly) the full width
     const levelX = (lvl: number) =>
-      width * 0.32 + (lvl * (width * 0.6)) / (LEVELS - 1);
-    // segments stack vertically within a level column, centered on midline
-    const laneH = () => Math.min(height * 0.72, 220);
+      width * 0.26 + (lvl * (width * 0.66)) / (LEVELS - 1);
+    // segments stack vertically within a level column — use most of the height
+    const laneH = () => height * 0.84;
     function slotPos(level: number, slot: number) {
       const h = laneH();
       const top = height / 2 - h / 2;
@@ -128,9 +141,16 @@ export function LsmSim({ running, onStatus }: SimProps) {
     }
 
     function tick(dt: number) {
+      // live params
+      const writeRate = Math.max(0.5, paramsRef.current?.writeRate ?? 2);
+      const fanout = Math.round(paramsRef.current?.fanout ?? 4);
+      FANOUT[0] = Math.max(2, fanout);
+      FANOUT[1] = Math.max(2, fanout - 1);
+      FANOUT[2] = Math.max(2, fanout - 2);
+
       writeAt -= dt;
       if (writeAt <= 0) {
-        writeAt = 0.5 + Math.random() * 0.3;
+        writeAt = 1 / writeRate;
         memFill += 0.34;
         if (memFill >= 1) flush();
       }
@@ -143,29 +163,41 @@ export function LsmSim({ running, onStatus }: SimProps) {
 
     function draw() {
       ctx.clearRect(0, 0, width, height);
-      const p = palette.current;
+      const pal = palette.current;
+      // role map: memtable = accent2, levels L0/L1/L2 = accent2/accent1/accent3,
+      // frames = border, labels = muted. Low-alpha fills keep text readable.
+      const LSM = {
+        mem: pal.accent2,
+        level: [pal.accent2, pal.accent1, pal.accent3] as [
+          number,
+          number,
+          number
+        ][],
+        frame: pal.border,
+        label: pal.muted,
+      };
       const h = laneH();
       const top = height / 2 - h / 2;
 
       // memtable (vertical bar, left) — fills bottom-up as writes arrive
       const mx = memX();
-      const memW = 20;
-      ctx.strokeStyle = rgba(p.border, 0.7);
+      const memW = Math.max(20, width * 0.022);
+      ctx.strokeStyle = rgba(LSM.frame, 0.55);
       ctx.lineWidth = 1;
       ctx.strokeRect(mx - memW / 2, top, memW, h);
       const fillH = h * memFill;
-      ctx.fillStyle = rgba(p.accent2, 0.5);
+      ctx.fillStyle = rgba(LSM.mem, 0.28);
       ctx.fillRect(mx - memW / 2, top + h - fillH, memW, fillH);
-      ctx.fillStyle = rgba(p.muted, 0.85);
-      ctx.font = "600 9px ui-monospace, monospace";
+      ctx.fillStyle = rgba(LSM.label, 0.85);
+      ctx.font = "600 10px ui-monospace, monospace";
       ctx.textAlign = "center";
       ctx.fillText("memtable", mx, top - 8);
 
       // level column headers + guide lines
-      const segColor = (lvl: number) => [p.accent2, p.accent1, p.accent3][lvl % 3];
+      const segColor = (lvl: number) => LSM.level[lvl % LSM.level.length];
       for (let l = 0; l < LEVELS; l++) {
         const lx = levelX(l);
-        ctx.strokeStyle = rgba(p.border, 0.3);
+        ctx.strokeStyle = rgba(LSM.frame, 0.3);
         ctx.setLineDash([3, 4]);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -173,23 +205,25 @@ export function LsmSim({ running, onStatus }: SimProps) {
         ctx.lineTo(lx, top + h + 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = rgba(p.muted, 0.75);
-        ctx.font = "600 9px ui-monospace, monospace";
+        ctx.fillStyle = rgba(segColor(l), 0.85);
+        ctx.font = "700 10px ui-monospace, monospace";
         ctx.textAlign = "center";
         ctx.fillText(`L${l}`, lx, top - 8);
       }
 
-      // segments — width scales with merged size, height fixed per lane slot
+      // segments — width scales with merged size + canvas, height per lane slot
+      const baseW = Math.max(22, width * 0.03);
       for (const s of segs) {
-        const laneSegH = (h / (FANOUT[s.level] + 1)) * 0.78;
-        const segW = (18 + s.level * 10) * Math.min(1.8, s.size);
+        const laneSegH = (h / (FANOUT[s.level] + 1)) * 0.8;
+        const segW = (baseW + s.level * baseW * 0.5) * Math.min(1.8, s.size);
         const col = segColor(s.level);
         const appear = Math.min(1, s.age * 3);
-        ctx.fillStyle = rgba(col, 0.75 * appear + 0.1);
-        ctx.strokeStyle = rgba(col, 0.9);
-        ctx.lineWidth = 1;
+        // light fill (keeps text readable) + a crisp colored border for contrast
+        ctx.fillStyle = rgba(col, 0.16 * appear + 0.04);
+        ctx.strokeStyle = rgba(col, 0.85 * appear + 0.1);
+        ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.roundRect(s.x - segW / 2, s.y - laneSegH / 2, segW, laneSegH, 2);
+        ctx.roundRect(s.x - segW / 2, s.y - laneSegH / 2, segW, laneSegH, 3);
         ctx.fill();
         ctx.stroke();
       }

@@ -89,6 +89,16 @@
   );
 }
 
+/* Symmetric circular mask — for radial/circular sims so they never look oval. */
+.sim-bg-circle {
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    #000 60%,
+    transparent 85%
+  );
+  mask-image: radial-gradient(circle at 50% 50%, #000 60%, transparent 85%);
+}
+
 /* Scrim behind hero text to keep it readable over the live simulation. */
 .hero-scrim {
   background: linear-gradient(
@@ -169,6 +179,16 @@
   backdrop-filter: blur(10px) saturate(1.1);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
   border-color: hsl(var(--border) / 0.7);
+}
+
+/* Frostier glass — more translucent + stronger blur, for cards sitting over a
+   live sim so the animation reads clearly through them. */
+.glass-strong {
+  background-color: hsl(var(--card) / 0.42);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  border-color: hsl(var(--border) / 0.6);
+  box-shadow: 0 1px 0 hsl(0 0% 100% / 0.5) inset;
 }
 
 /* Animated underline for nav links */

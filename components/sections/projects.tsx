@@ -6,7 +6,8 @@ import { Reveal } from "@/components/motion/reveal";
 import { SkillBadge } from "@/components/motion/brand-logo";
 import { ProjectGallery } from "@/components/motion/project-gallery";
 import { SimLayer } from "@/components/motion/sim-layer";
-import { LsmSim } from "@/components/motion/sims/lsm-sim";
+import { LsmSim } from "@/components/motion/sims/lazy";
+import { lsmControls } from "@/lib/sim-controls";
 import { projects, type Project } from "@/lib/data";
 
 function ProjectCard({ project }: { project: Project }) {
@@ -73,6 +74,7 @@ export function Projects() {
         side="full"
         opacity={0.5}
         sim={LsmSim}
+        controls={lsmControls}
       />
       <div className="container relative z-10">
         <Reveal>

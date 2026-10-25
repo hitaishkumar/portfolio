@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { rgba, useSimPalette } from "@/components/motion/sim-core";
-import type { SimProps } from "@/components/motion/sim-layer";
+import type { SimProps, SimControl } from "@/components/motion/sim-layer";
 
 /* Two-Phase Commit — a coordinator drives participants through PREPARE then
  * COMMIT/ABORT. Participants reply with vote-yes/no; a single NO aborts the
@@ -12,9 +12,18 @@ type Phase = "idle" | "prepare" | "voting" | "decision" | "ack";
 type Part = { x: number; y: number; vote: "?" | "yes" | "no"; acked: boolean };
 type Pkt = { from: [number, number]; to: [number, number]; t: number; color: 0 | 1 | 2 };
 
-export function TwoPhaseCommitSim({ running, onStatus }: SimProps) {
+export const twoPhaseCommitControls: SimControl[] = [
+  { key: "participants", label: "participants", min: 2, max: 6, default: 3 },
+  { key: "abortPct", label: "abort %", min: 0, max: 80, step: 5, default: 25, unit: "%" },
+];
+
+export function TwoPhaseCommitSim({ running, onStatus, params }: SimProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const palette = useSimPalette();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -28,7 +37,7 @@ export function TwoPhaseCommitSim({ running, onStatus }: SimProps) {
     let height = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    const NP = 3;
+    let NP = Math.round(paramsRef.current?.participants ?? 3);
     let coord: [number, number] = [0, 0];
     let parts: Part[] = [];
     const pkts: Pkt[] = [];
@@ -44,7 +53,7 @@ export function TwoPhaseCommitSim({ running, onStatus }: SimProps) {
       parts = [];
       for (let i = 0; i < NP; i++) {
         parts.push({
-          x: width * (0.25 + (i / (NP - 1)) * 0.5),
+          x: width * (0.25 + (i / Math.max(1, NP - 1)) * 0.5),
           y: height * 0.68,
           vote: "?",
           acked: false,
@@ -73,6 +82,12 @@ export function TwoPhaseCommitSim({ running, onStatus }: SimProps) {
       if (phaseAt > 0) return;
 
       if (phase === "idle") {
+        // apply a changed participant count at the start of a new txn
+        const wantNP = Math.round(paramsRef.current?.participants ?? 3);
+        if (wantNP !== NP) {
+          NP = wantNP;
+          layout();
+        }
         phase = "prepare";
         phaseAt = 1.1;
         txn++;
@@ -84,8 +99,10 @@ export function TwoPhaseCommitSim({ running, onStatus }: SimProps) {
       } else if (phase === "prepare") {
         phase = "voting";
         phaseAt = 1.1;
-        // participants vote; ~20% chance one votes no
-        const abortIdx = Math.random() < 0.25 ? Math.floor(Math.random() * NP) : -1;
+        // participants vote; abort probability is user-controlled
+        const abortProb = (paramsRef.current?.abortPct ?? 25) / 100;
+        const abortIdx =
+          Math.random() < abortProb ? Math.floor(Math.random() * NP) : -1;
         parts.forEach((pt, i) => {
           pt.vote = i === abortIdx ? "no" : "yes";
           pkts.push({ from: [pt.x, pt.y], to: coord, t: 0, color: pt.vote === "yes" ? 1 : 2 });

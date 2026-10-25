@@ -200,6 +200,7 @@ export const experiences: Experience[] = [
         scale: "600M+ communications · 10M+ users",
         caseStudy: "/case-study/nx",
         points: [
+          "Built the in-house equivalent of Fyno.io — a communication-orchestration layer that sits above every SMS/email/WhatsApp/push vendor, giving one regulated-BFSI control plane to route, govern, and prove 600M+ messages to 10M+ users with higher deliverability and lower cost, no compliance trade-off.",
           "Designed, built, and operated a multi-service, event-driven distributed platform in Go (Publisher API, Distributor, Consumer, Webhook, Campaign Manager, Flusher), owning features end-to-end from design docs through deployment and live-site operations.",
           "Architected a high-throughput consumer engine using goroutine-per-message concurrency with semaphore-bounded workers (1000 in-flight) and QoS prefetch matching, improving latency and throughput while preventing memory exhaustion.",
           "Designed an async distribution pipeline on RabbitMQ using per-campaign vhost isolation, token-bucket rate limiting, and self-terminating on-demand compute, eliminating noisy-neighbor contention and idle cost.",
@@ -261,12 +262,12 @@ export type Project = {
 export const projects: Project[] = [
   {
     name: "NX — Notification Orchestration Platform",
-    subtitle: "Multi-tenant distributed systems platform · KFINTECH",
+    subtitle: "In-house communication orchestration layer · KFINTECH",
     caseStudy: "/case-study/nx",
     points: [
-      "Designed and operated a multi-service, event-driven platform in Go (Publisher, Distributor, Consumer, Webhook, Campaign Manager, Flusher) executing omni-channel campaigns at 600M+ communications across 10M+ users.",
-      "Built a 1000-in-flight semaphore-bounded consumer engine, per-campaign RabbitMQ vhost isolation, token-bucket rate limiting to vendor max throughput, and an append-only ClickHouse staging model (ReplacingMergeTree) for wait-time resolution.",
-      "Root-caused a single-merge-thread ClickHouse bottleneck and a quota-exhaustion shutdown cascade; tuned merges and reordered graceful shutdown for exactly-once, zero-loss behavior.",
+      "An in-house communication-orchestration platform (same category as Fyno.io) that sits above every SMS/email/WhatsApp/push vendor — one control plane for 600M+ messages to 10M+ users in a regulated BFSI environment.",
+      "Intelligent routing, automatic failover, exactly-once delivery, and on-demand compute — higher deliverability and lower messaging cost, no compliance trade-off.",
+      "Multi-tenant isolation, encryption, and per-vendor delivery analytics in one view; sustained 99.9% uptime.",
     ],
     tags: ["Go", "RabbitMQ", "ClickHouse", "PostgreSQL", "Redis", "AWS ECS", "OpenTelemetry"],
   },

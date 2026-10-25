@@ -1,7 +1,8 @@
 import { Reveal } from "@/components/motion/reveal";
 import { EduLogo } from "@/components/motion/edu-logo";
 import { SimLayer } from "@/components/motion/sim-layer";
-import { VectorClockSim } from "@/components/motion/sims/vector-clock-sim";
+import { VectorClockSim } from "@/components/motion/sims/lazy";
+import { vectorClockControls } from "@/lib/sim-controls";
 import { SectionHeading } from "@/components/sections/section-heading";
 import { Card, CardContent } from "@/components/ui/card";
 import { education, profile } from "@/lib/data";
@@ -16,6 +17,7 @@ export function About() {
         side="right"
         opacity={0.95}
         sim={VectorClockSim}
+        controls={vectorClockControls}
       />
       <div className="container relative z-10">
         <Reveal>

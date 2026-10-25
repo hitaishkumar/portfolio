@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/sections/section-heading";
 import { Reveal } from "@/components/motion/reveal";
 import { SimLayer } from "@/components/motion/sim-layer";
-import { TwoPhaseCommitSim } from "@/components/motion/sims/two-phase-commit-sim";
+import { TwoPhaseCommitSim } from "@/components/motion/sims/lazy";
+import { twoPhaseCommitControls } from "@/lib/sim-controls";
 import { profile } from "@/lib/data";
 
 export function Contact() {
@@ -15,6 +16,7 @@ export function Contact() {
         side="right"
         opacity={0.64}
         sim={TwoPhaseCommitSim}
+        controls={twoPhaseCommitControls}
       />
       <div className="container relative z-10">
         <Reveal>

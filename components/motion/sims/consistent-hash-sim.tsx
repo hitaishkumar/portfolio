@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { rgba, useSimPalette } from "@/components/motion/sim-core";
-import type { SimProps } from "@/components/motion/sim-layer";
+import type { SimProps, SimControl } from "@/components/motion/sim-layer";
 
 /* Consistent Hashing — keys and nodes placed on a hash ring (0..1 around the
  * circle). Each key is owned by the first node clockwise. Nodes join/leave
@@ -11,9 +11,19 @@ import type { SimProps } from "@/components/motion/sim-layer";
 type RingNode = { id: number; pos: number; vnode: boolean };
 type Key = { pos: number; owner: number; moving: number }; // moving: anim progress
 
-export function ConsistentHashSim({ running, onStatus }: SimProps) {
+export const consistentHashControls: SimControl[] = [
+  { key: "nodes", label: "nodes", min: 3, max: 10, default: 5 },
+  { key: "keys", label: "keys", min: 10, max: 120, default: 40 },
+  { key: "churn", label: "churn", min: 0, max: 10, default: 4 },
+];
+
+export function ConsistentHashSim({ running, onStatus, params }: SimProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const palette = useSimPalette();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -65,9 +75,11 @@ export function ConsistentHashSim({ running, onStatus }: SimProps) {
       nodes = [];
       keys = [];
       nextId = 0;
-      for (let i = 0; i < 5; i++)
-        nodes.push({ id: nextId++, pos: i / 5 + Math.random() * 0.05, vnode: false });
-      for (let i = 0; i < 40; i++)
+      const n0 = Math.round(paramsRef.current?.nodes ?? 5);
+      const k0 = Math.round(paramsRef.current?.keys ?? 40);
+      for (let i = 0; i < n0; i++)
+        nodes.push({ id: nextId++, pos: i / n0 + Math.random() * 0.05, vnode: false });
+      for (let i = 0; i < k0; i++)
         keys.push({ pos: Math.random(), owner: -1, moving: 0 });
       reassign();
     }
@@ -82,7 +94,7 @@ export function ConsistentHashSim({ running, onStatus }: SimProps) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       cx = width / 2;
       cy = height / 2;
-      R = Math.min(width, height) * 0.32;
+      R = Math.min(width, height) * 0.4;
     }
 
     init();
@@ -95,20 +107,32 @@ export function ConsistentHashSim({ running, onStatus }: SimProps) {
       return arr[id % 3];
     };
 
-    const ptOnRing = (pos: number, radius: number) => {
-      const ang = -Math.PI / 2 + pos * Math.PI * 2 + rotate;
-      return [cx + Math.cos(ang) * radius, cy + Math.sin(ang) * radius] as const;
-    };
-
     function tick(dt: number) {
+      const wantNodes = Math.round(paramsRef.current?.nodes ?? 5);
+      const wantKeys = Math.round(paramsRef.current?.keys ?? 40);
+      const churn = Math.max(0, paramsRef.current?.churn ?? 4);
+
+      // sync key count live
+      if (keys.length !== wantKeys) {
+        if (keys.length < wantKeys) {
+          for (let i = keys.length; i < wantKeys; i++)
+            keys.push({ pos: Math.random(), owner: -1, moving: 1 });
+        } else {
+          keys.length = wantKeys;
+        }
+        reassign();
+      }
+
       rotate += dt * 0.08;
       eventAt -= dt;
       if (eventAt <= 0) {
-        eventAt = 3 + Math.random() * 2;
-        if (nodes.length > 3 && Math.random() < 0.45) {
-          // remove a node
+        // churn 0 → slow drift; churn 10 → fast join/leave
+        eventAt = churn <= 0 ? 6 : 4.5 - (churn / 10) * 4;
+        const n = nodes.length;
+        // bias toward the target node count, with churn-driven activity
+        if (n > wantNodes || (n > 3 && n >= wantNodes && Math.random() < 0.4)) {
           nodes.splice(Math.floor(Math.random() * nodes.length), 1);
-        } else if (nodes.length < 8) {
+        } else if (n < wantNodes || (n < 10 && Math.random() < 0.4)) {
           nodes.push({ id: nextId++, pos: Math.random(), vnode: false });
         }
         reassign();
@@ -119,44 +143,99 @@ export function ConsistentHashSim({ running, onStatus }: SimProps) {
     function draw() {
       ctx.clearRect(0, 0, width, height);
       const p = palette.current;
+      const TAU = Math.PI * 2;
+      const angOf = (pos: number) => -Math.PI / 2 + pos * TAU + rotate;
 
-      // ring
-      ctx.strokeStyle = rgba(p.border, 0.6);
-      ctx.lineWidth = 1.5;
+      // sorted node angles (for owned-arc segments)
+      const sorted = [...nodes].sort((a, b) => a.pos - b.pos);
+
+      // 1) owned-arc ring — each node colors the arc it owns clockwise.
+      //    This is the "aha" of consistent hashing, drawn as a thick soft band.
+      if (sorted.length > 0) {
+        ctx.lineCap = "butt";
+        for (let i = 0; i < sorted.length; i++) {
+          const n = sorted[i];
+          const next = sorted[(i + 1) % sorted.length];
+          const a0 = angOf(n.pos);
+          let a1 = angOf(next.pos);
+          if (a1 <= a0) a1 += TAU;
+          ctx.strokeStyle = rgba(nodeColor(n.id), 0.22);
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(cx, cy, R, a0, a1);
+          ctx.stroke();
+        }
+      }
+
+      // 2) crisp primary ring (hairline over the band)
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = rgba(p.fg, 0.28);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R, 0, TAU);
       ctx.stroke();
 
-      // keys on inner track
+      // 3) faint dashed inner guide ring (quiet structural detail)
+      ctx.setLineDash([2, 6]);
+      ctx.strokeStyle = rgba(p.muted, 0.25);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 0.82, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 4) keys gliding just inside the ring, tinted by owner
       for (const k of keys) {
-        const [x, y] = ptOnRing(k.pos, R - 10 - (k.moving > 0 ? k.moving * 6 : 0));
+        const rr = R * 0.82 + (k.moving > 0 ? k.moving * 10 : 0);
+        const a = angOf(k.pos);
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr;
         const col = k.owner >= 0 ? nodeColor(k.owner) : p.muted;
-        ctx.fillStyle = rgba(col, k.moving > 0 ? 0.9 : 0.5);
+        ctx.fillStyle = rgba(col, k.moving > 0 ? 0.95 : 0.55);
         ctx.beginPath();
-        ctx.arc(x, y, k.moving > 0 ? 2.6 : 1.8, 0, Math.PI * 2);
+        ctx.arc(x, y, k.moving > 0 ? 2.6 : 1.6, 0, TAU);
         ctx.fill();
       }
 
-      // nodes on the ring
+      // 5) refined node "pins" sitting on the ring
       for (const n of nodes) {
-        const [x, y] = ptOnRing(n.pos, R);
+        const a = angOf(n.pos);
+        const x = cx + Math.cos(a) * R;
+        const y = cy + Math.sin(a) * R;
         const col = nodeColor(n.id);
-        // crisp outer ring instead of a glow
-        ctx.strokeStyle = rgba(col, 0.5);
-        ctx.lineWidth = 1;
+        // soft halo (single arc, cheap)
+        ctx.fillStyle = rgba(col, 0.12);
         ctx.beginPath();
-        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.arc(x, y, 13, 0, TAU);
+        ctx.fill();
+        // thin outer ring
+        ctx.strokeStyle = rgba(col, 0.55);
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(x, y, 9, 0, TAU);
         ctx.stroke();
+        // filled dot
         ctx.fillStyle = rgba(col, 0.95);
         ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.arc(x, y, 6, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = rgba([255, 255, 255], 0.9);
-        ctx.font = "600 8px ui-monospace, monospace";
+        // label
+        ctx.fillStyle = rgba(p.bg, 0.95);
+        ctx.font = "700 8px ui-monospace, monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(`N${n.id}`, x, y);
+        ctx.fillText(`${n.id}`, x, y);
       }
+
+      // 6) quiet center label
+      ctx.fillStyle = rgba(p.muted, 0.5);
+      ctx.font = "600 9px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("hash ring", cx, cy - 6);
+      ctx.fillStyle = rgba(p.fg, 0.7);
+      ctx.font = "700 13px ui-monospace, monospace";
+      ctx.fillText(`${nodes.length} nodes`, cx, cy + 9);
     }
 
     let raf = 0;

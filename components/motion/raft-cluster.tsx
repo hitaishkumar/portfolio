@@ -91,12 +91,29 @@ function termColor(term: number, alpha = 1) {
   return `hsla(${h}, 70%, 60%, ${alpha})`;
 }
 
-const N = 5;
-const MAJORITY = Math.floor(N / 2) + 1;
+export type RaftControl = {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  default: number;
+  unit?: string;
+};
 
-export function RaftCluster() {
+export const raftControls: RaftControl[] = [
+  { key: "servers", label: "servers", min: 3, max: 7, default: 7 },
+  { key: "heartbeat", label: "heartbeat/s", min: 1, max: 6, default: 1 },
+  { key: "failures", label: "failures", min: 0, max: 10, default: 3 },
+];
+
+export function RaftCluster({ params }: { params?: Record<string, number> }) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -120,6 +137,10 @@ export function RaftCluster() {
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+    // cluster size + majority are dynamic (tunable via params)
+    let N = Math.round(paramsRef.current?.servers ?? 7);
+    let MAJORITY = Math.floor(N / 2) + 1;
 
     const servers: Server[] = [];
     const messages: Message[] = [];
@@ -251,6 +272,19 @@ export function RaftCluster() {
     function step(dt: number) {
       simTime += dt;
 
+      // live params
+      const wantN = Math.round(paramsRef.current?.servers ?? 7);
+      if (wantN !== N) {
+        N = wantN;
+        MAJORITY = Math.floor(N / 2) + 1;
+        messages.length = 0;
+        initServers();
+        placeServers();
+        becomeCandidate(servers[Math.floor(Math.random() * N)]);
+      }
+      const hbInterval = 1 / Math.max(0.5, paramsRef.current?.heartbeat ?? 1);
+      const failRate = Math.max(0, paramsRef.current?.failures ?? 3);
+
       // advance messages
       for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i];
@@ -285,7 +319,7 @@ export function RaftCluster() {
 
       if (leader) {
         // periodic heartbeats
-        if (simTime - lastHeartbeat > 1.1) {
+        if (simTime - lastHeartbeat > hbInterval) {
           lastHeartbeat = simTime;
           for (const o of servers) {
             if (o.id !== leader.id && o.alive)
@@ -320,7 +354,13 @@ export function RaftCluster() {
           }
         }
         // occasionally the leader fails → triggers a new election
-        if (simTime - lastLeaderFail > 11 && Math.random() < dt * 0.4) {
+        // failRate 0 → never; higher → sooner & more likely
+        const failGap = 18 - failRate * 1.4; // seconds of immunity after a fail
+        if (
+          failRate > 0 &&
+          simTime - lastLeaderFail > failGap &&
+          Math.random() < dt * 0.1 * failRate
+        ) {
           lastLeaderFail = simTime;
           leader.alive = false;
           leader.role = "follower";
@@ -513,7 +553,7 @@ export function RaftCluster() {
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class"],
+      attributeFilter: ["class", "style", "data-theme"],
     });
 
     const onResize = () => resize();

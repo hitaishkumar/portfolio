@@ -257,8 +257,11 @@ export function SkillBadge({ label }: { label: string }) {
     const color = `#${brand.hex}`;
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
-        style={{ backgroundColor: `${color}14`, borderColor: `${color}40` }}
+        className="inline-flex items-center gap-1.5 rounded-md border bg-card/80 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md"
+        style={{
+          borderColor: `${color}55`,
+          boxShadow: `inset 0 0 0 999px ${color}1f`,
+        }}
       >
         <svg
           role="img"
@@ -281,8 +284,11 @@ export function SkillBadge({ label }: { label: string }) {
   const color = concept.color;
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: `${color}14`, borderColor: `${color}40` }}
+      className="inline-flex items-center gap-1.5 rounded-md border bg-card/80 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md"
+      style={{
+        borderColor: `${color}55`,
+        boxShadow: `inset 0 0 0 999px ${color}1f`,
+      }}
     >
       <Icon className="h-3.5 w-3.5" style={{ color }} />
       <span className="text-foreground/90">{label}</span>

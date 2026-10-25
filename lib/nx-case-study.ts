@@ -7,9 +7,10 @@
 
 export const nxOverview = {
   title: "NX — Notification Orchestration Platform",
-  tagline: "A multi-tenant, event-driven platform for omni-channel campaigns",
+  tagline:
+    "The in-house communication-orchestration layer — route, govern & prove every message",
   summary:
-    "NX executes bulk Email/SMS/WhatsApp campaigns through configurable flow DAGs with conditional routing, failover paths, wait-time gating, and real-time delivery analytics — while isolating every tenant at the database, broker, and compute layer. I owned it end-to-end: design docs, six Go services, the AWS footprint, and live-site operations.",
+    "NX is a communication-orchestration platform built in-house at KFINTECH — the same product category as Fyno.io, purpose-built for a regulated BFSI environment. It sits above every messaging vendor as one control plane: a single API to run omni-channel Email/SMS/WhatsApp campaigns through configurable flow DAGs with conditional routing, automatic failover, wait-time gating, and real-time delivery analytics — while enforcing exactly-once delivery, per-tenant isolation at the database, broker and compute layers, encryption, and auditable authorization. The result is higher deliverability and lower messaging cost without trading away compliance. I owned it end-to-end: design docs, six Go services, the AWS footprint, and live-site operations.",
   role: "Senior Software Engineer (R&D) · KFINTECH",
   stack: [
     "Go",

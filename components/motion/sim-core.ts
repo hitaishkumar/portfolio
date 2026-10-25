@@ -44,6 +44,7 @@ export function useSimPalette() {
       accent1: hslVarToRgb("--accent-1"),
       accent2: hslVarToRgb("--accent-2"),
       accent3: hslVarToRgb("--accent-3"),
+      bg: hslVarToRgb("--background"),
       fg: hslVarToRgb("--foreground"),
       muted: hslVarToRgb("--muted-foreground"),
       border: hslVarToRgb("--border"),
@@ -59,7 +60,7 @@ export function useSimPalette() {
     });
     obs.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class"],
+      attributeFilter: ["class", "style", "data-theme"],
     });
     return () => obs.disconnect();
   }, [read]);

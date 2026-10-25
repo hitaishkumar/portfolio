@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { rgba, useSimPalette } from "@/components/motion/sim-core";
-import type { SimProps } from "@/components/motion/sim-layer";
+import type { SimProps, SimControl } from "@/components/motion/sim-layer";
 
 /* ------------------------------------------------------------------ *
  * High-Water-Mark replication.
@@ -35,9 +35,22 @@ type Packet = {
   t: number; // 0..1 flight progress
 };
 
-export function HighWaterMarkSim({ running, onStatus }: SimProps) {
+/* Colors are derived from the active theme palette each frame (role-mapped so
+ * the sim stays legible and distinct within any theme). */
+
+export const hwmControls: SimControl[] = [
+  { key: "servers", label: "servers", min: 6, max: 40, default: 16 },
+  { key: "appendRate", label: "append/s", min: 1, max: 12, default: 4 },
+  { key: "churn", label: "churn", min: 0, max: 10, default: 4 },
+];
+
+export function HighWaterMarkSim({ running, onStatus, params }: SimProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const palette = useSimPalette();
+  const paramsRef = React.useRef(params);
+  React.useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   React.useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -62,6 +75,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
     let hwm = 0; // committed high-water mark
     let appendAcc = 0; // append cadence
     let membershipAcc = 0; // join/leave cadence
+    let spawnAcc = 0; // decorative packet spawn cadence
     let joins = 0;
     let leaves = 0;
 
@@ -121,42 +135,48 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // how many columns fill ~96% of the width at the desired column width
-      targetReplicas = Math.max(6, Math.round((width * 0.96) / COL_W));
+      const fit = Math.max(6, Math.round((width * 0.96) / COL_W));
+      const wanted = Math.round(paramsRef.current?.servers ?? 16);
+      targetReplicas = Math.min(fit, Math.max(6, wanted));
     }
     resize();
     init();
 
-    // in-sync set = leader + followers within LAG_INSYNC that aren't leaving
-    function isrOffsets(): number[] {
-      const out: number[] = [];
-      for (const r of replicas) {
-        if (r.state === "leaving" || r.life < 0.5) continue;
-        if (r.state === "leader" || r.state === "insync") out.push(r.leo);
-      }
-      return out;
-    }
-
     function recomputeIsrAndHwm() {
+      // ISR membership with hysteresis to avoid flicker
       for (const r of replicas) {
         if (r.state === "catchup" && leaderLeo - r.leo <= LAG_INSYNC) {
           r.state = "insync";
-        } else if (r.state === "insync" && leaderLeo - r.leo > LAG_INSYNC + 3) {
-          // fell too far behind → drop back to catch-up (out of ISR)
+        } else if (r.state === "insync" && leaderLeo - r.leo > LAG_INSYNC + 4) {
           r.state = "catchup";
         }
       }
-      const offsets = isrOffsets();
-      // HWM is the min committed offset across the ISR, never decreasing past
-      // what's already acknowledged visually but may stall while a node lags.
-      const minIsr = offsets.length ? Math.min(...offsets) : hwm;
-      hwm = Math.max(hwm, Math.min(minIsr, leaderLeo));
-      // if a lagging node (re)joins ISR below hwm, HWM holds (monotonic).
+      // HWM = highest offset replicated on a QUORUM of in-sync replicas
+      // (leader + insync). This advances smoothly with the leader and never
+      // regresses, instead of stalling on the single slowest node.
+      const isr = replicas.filter(
+        (r) => (r.state === "leader" || r.state === "insync") && r.life > 0.5
+      );
+      if (isr.length > 0) {
+        const quorum = Math.floor(isr.length / 2) + 1;
+        const leos = isr.map((r) => r.leo).sort((a, b) => b - a);
+        // the offset acked by at least `quorum` replicas = the quorum-th largest
+        const committedTo = leos[quorum - 1];
+        hwm = Math.max(hwm, Math.min(committedTo, leaderLeo));
+      }
     }
 
     function tick(dt: number) {
+      // live params (recomputed each frame so slider changes take effect)
+      const fit = Math.max(6, Math.round((width * 0.96) / COL_W));
+      const wantedServers = Math.round(paramsRef.current?.servers ?? 16);
+      targetReplicas = Math.min(fit, Math.max(6, wantedServers));
+      const appendRate = Math.max(0.5, paramsRef.current?.appendRate ?? 4);
+      const churn = Math.max(0, paramsRef.current?.churn ?? 4);
+
       // 1) leader appends new entries at a steady cadence
       appendAcc += dt;
-      const appendEvery = 0.55;
+      const appendEvery = 1 / appendRate;
       while (appendAcc >= appendEvery) {
         appendAcc -= appendEvery;
         leaderLeo += 1;
@@ -165,41 +185,45 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
           leader.leo = leaderLeo;
           leader.target = leaderLeo;
         }
-        // ship the new entry to every live follower
-        replicas.forEach((r, i) => {
-          if (r.state === "leader" || r.state === "leaving") return;
-          packets.push({ to: i, offset: leaderLeo, t: 0 });
-        });
       }
 
-      // 2) catch-up replicas also pull older missing entries faster
-      for (let i = 0; i < replicas.length; i++) {
-        const r = replicas[i];
-        if (r.state === "catchup" && r.leo < leaderLeo) {
-          r.joinAt += dt;
-          // emit catch-up fetch packets in bursts
-          if (Math.random() < dt * 6 && packets.length < 60) {
-            packets.push({ to: i, offset: r.leo + 1, t: 0 });
-          }
+      // 2) followers replicate toward the leader. In-sync followers track
+      //    closely; catch-up followers fast-forward until they rejoin. This is
+      //    done deterministically (no per-entry packet spam) so it scales.
+      for (const r of replicas) {
+        if (r.state === "leader" || r.state === "leaving") continue;
+        const gap = leaderLeo - r.leo;
+        if (gap <= 0) continue;
+        // replication speed: fast while catching up, ~1-2 entries/tick in-sync
+        const speed = r.state === "catchup" ? Math.max(6, gap * 4) : 3;
+        const advance = Math.max(1, Math.round(speed * dt * 10));
+        r.leo = Math.min(leaderLeo, r.leo + advance);
+      }
+
+      // 3) a small, capped set of visual packets from leader → followers
+      //    (purely decorative; replication above is authoritative)
+      spawnAcc += dt;
+      if (spawnAcc > 0.12) {
+        spawnAcc = 0;
+        const live = replicas.filter(
+          (r) => r.state !== "leader" && r.state !== "leaving"
+        );
+        // emit at most a handful of packets regardless of cluster size
+        const budget = Math.min(4, live.length);
+        for (let k = 0; k < budget && packets.length < 24; k++) {
+          const r = live[Math.floor(Math.random() * live.length)];
+          const idx = replicas.indexOf(r);
+          if (idx >= 0) packets.push({ to: idx, offset: r.leo, t: 0 });
         }
       }
 
-      // 3) advance packets; on arrival, bump the follower's LEO
+      // 4) advance decorative packets
       for (let i = packets.length - 1; i >= 0; i--) {
-        const pk = packets[i];
-        pk.t += dt * 1.6;
-        if (pk.t >= 1) {
-          const r = replicas[pk.to];
-          if (r && r.state !== "leaving") {
-            // apply in order: only accept the next contiguous entry
-            if (pk.offset === r.leo + 1) r.leo = pk.offset;
-            else if (pk.offset > r.leo) r.leo = Math.max(r.leo, r.leo + 1);
-          }
-          packets.splice(i, 1);
-        }
+        packets[i].t += dt * 1.6;
+        if (packets[i].t >= 1) packets.splice(i, 1);
       }
 
-      // 4) smooth render offset
+      // 5) smooth render offset
       for (const r of replicas) {
         r.target += (r.leo - r.target) * Math.min(1, dt * 8);
         if (r.state === "leaving") {
@@ -212,10 +236,12 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       // drop fully-faded leavers
       replicas = replicas.filter((r) => !(r.state === "leaving" && r.life <= 0));
 
-      // 5) membership churn: keep the cluster near the width-derived target,
+      // 6) membership churn: keep the cluster near the width-derived target,
       //    with constant join/leave activity around it.
       membershipAcc += dt;
-      if (membershipAcc > 1.6) {
+      // churn 0 → slow (4s) and no voluntary leaves; churn 10 → fast (~0.8s)
+      const churnInterval = 4 - (churn / 10) * 3.2;
+      if (membershipAcc > churnInterval) {
         membershipAcc = 0;
         const alive = replicas.filter(
           (r) => r.state !== "leader" && r.state !== "leaving"
@@ -223,13 +249,14 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         const total = alive.length + 1; // + leader
         // below target → bias toward joining; at/above → bias toward leaving
         const deficit = targetReplicas - total;
+        const leaveProb = (churn / 10) * 0.8; // 0 churn → never leave
         const wantJoin =
           deficit > 0 && (deficit >= 2 || Math.random() < 0.75);
         if (wantJoin) {
           const f = makeFollower(Math.max(0, leaderLeo - WINDOW + 2));
           replicas.push(f);
           joins++;
-        } else if (alive.length > 2 && Math.random() < 0.5) {
+        } else if (alive.length > 2 && Math.random() < leaveProb) {
           // crash a random non-leader follower
           const victim = alive[Math.floor(Math.random() * alive.length)];
           victim.state = "leaving";
@@ -242,7 +269,21 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
 
     function draw() {
       ctx.clearRect(0, 0, width, height);
-      const p = palette.current;
+      const pal = palette.current;
+      // role-mapped to theme tokens: committed/HWM = accent1, leader = accent2,
+      // catch-up = accent3, followers/labels = muted, frames = border.
+      const C = {
+        committed: pal.accent1,
+        dirty: pal.muted,
+        leader: pal.accent2,
+        leaderDirty: pal.accent2,
+        hwm: pal.accent1,
+        leo: pal.accent2,
+        packet: pal.accent2,
+        label: pal.muted,
+        catchup: pal.accent3,
+        frame: pal.border,
+      };
 
       // Vertical layout: offsets run TOP → BOTTOM (y axis); each replica is a
       // COLUMN laid out left → right (x axis). Columns tile the full width.
@@ -265,7 +306,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       // --- HWM horizontal marker (committed boundary) ---
       const hwmY = yForOffset(hwm) + cellH;
       if (hwm >= originOffset) {
-        ctx.strokeStyle = rgba(p.accent1, 0.55);
+        ctx.strokeStyle = rgba(C.hwm, 0.6);
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
@@ -273,7 +314,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         ctx.lineTo(originX + blockW + 12, hwmY);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = rgba(p.accent1, 0.9);
+        ctx.fillStyle = rgba(C.hwm, 0.95);
         ctx.font = "600 10px ui-monospace, monospace";
         ctx.textAlign = "right";
         ctx.fillText("HWM", originX + blockW - 4, hwmY - 4);
@@ -281,7 +322,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
 
       // --- leader LEO horizontal marker ---
       const leoY = yForOffset(leaderLeo) + cellH;
-      ctx.strokeStyle = rgba(p.accent2, 0.4);
+      ctx.strokeStyle = rgba(C.leo, 0.45);
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
@@ -289,7 +330,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       ctx.lineTo(originX + blockW + 12, leoY);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = rgba(p.accent2, 0.75);
+      ctx.fillStyle = rgba(C.leo, 0.8);
       ctx.font = "600 10px ui-monospace, monospace";
       ctx.textAlign = "right";
       ctx.fillText("LEO", originX + blockW - 4, leoY - 4);
@@ -303,12 +344,12 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         const isLeader = r.state === "leader";
         const labelCol =
           r.state === "leaving"
-            ? p.muted
+            ? C.dirty
             : isLeader
-            ? p.accent2
+            ? C.leader
             : r.state === "catchup"
-            ? p.accent3
-            : p.fg;
+            ? C.catchup
+            : C.label;
         // column header label — compact so it fits a narrow column
         ctx.fillStyle = rgba(labelCol, 0.85 * a);
         ctx.font = `${isLeader ? "700" : "500"} 9px ui-monospace, monospace`;
@@ -330,21 +371,21 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
           const present = off <= upto;
           const committed = off <= hwm;
           // cell frame (light so it doesn't darken text above it)
-          ctx.strokeStyle = rgba(p.border, 0.35 * a);
+          ctx.strokeStyle = rgba(C.frame, 0.3 * a);
           ctx.lineWidth = 0.6;
           ctx.strokeRect(x + 1.5, y, cw, cellH - 1.5);
           if (!present) continue;
-          let fill: [number, number, number] = committed ? p.accent1 : p.muted;
-          let alpha = committed ? 0.17 : 0.09;
+          let fill: [number, number, number] = committed ? C.committed : C.dirty;
+          let alpha = committed ? 0.2 : 0.1;
           if (isLeader) {
-            fill = committed ? p.accent1 : p.accent2;
-            alpha = committed ? 0.2 : 0.12;
+            fill = committed ? C.leader : C.leaderDirty;
+            alpha = committed ? 0.24 : 0.14;
           }
           ctx.fillStyle = rgba(fill, alpha * a);
           ctx.fillRect(x + 2.6, y + 0.6, cw - 1.2, cellH - 2.6);
           // crisp edge on the leader's freshly-appended head entry
           if (off === upto && off === leaderLeo && isLeader) {
-            ctx.strokeStyle = rgba(p.accent2, 0.8 * a);
+            ctx.strokeStyle = rgba(C.leader, 0.85 * a);
             ctx.lineWidth = 1.2;
             ctx.strokeRect(x + 2.6, y + 0.6, cw - 1.2, cellH - 2.6);
           }
@@ -353,7 +394,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         // vertical catch-up progress bar beside the column
         if (r.state === "catchup") {
           const prog = leaderLeo > 0 ? r.leo / leaderLeo : 0;
-          ctx.fillStyle = rgba(p.accent3, 0.5 * a);
+          ctx.fillStyle = rgba(C.catchup, 0.55 * a);
           ctx.fillRect(x + colW - 2, topY, 1.5, logH * prog);
         }
 
@@ -362,7 +403,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
           const cx = x + colW * 0.5;
           const cy = topY + logH * 0.5;
           const s = 7;
-          ctx.strokeStyle = rgba(p.muted, 0.7 * a);
+          ctx.strokeStyle = rgba(C.dirty, 0.75 * a);
           ctx.lineWidth = 1.4;
           ctx.beginPath();
           ctx.moveTo(cx - s, cy - s);
@@ -383,7 +424,7 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         const y = yForOffset(pk.offset) + cellH * 0.5;
         const px = leaderX + (destX - leaderX) * pk.t;
         const py = y; // entries land at their own offset row
-        ctx.fillStyle = rgba(p.accent2, 0.9 * r.life);
+        ctx.fillStyle = rgba(C.packet, 0.95 * r.life);
         ctx.beginPath();
         ctx.arc(px, py, 2.2, 0, Math.PI * 2);
         ctx.fill();

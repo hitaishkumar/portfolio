@@ -6,11 +6,28 @@ import { useOnScreen } from "@/components/motion/sim-core";
 
 export type SimStatus = Record<string, string>;
 
+/** A user-editable numeric parameter exposed as a slider in the info panel. */
+export type SimControl = {
+  /** Param key passed to the sim via `params`. */
+  key: string;
+  /** Short display label. */
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  /** Starting value. */
+  default: number;
+  /** Optional unit suffix shown next to the value (e.g. "/s", "%"). */
+  unit?: string;
+};
+
 export type SimProps = {
   running: boolean;
   onStatus?: (status: SimStatus) => void;
   /** Horizontal side the sim sits on within the section. */
   side?: "left" | "right" | "full";
+  /** Live, user-tunable parameters keyed by SimControl.key. */
+  params?: Record<string, number>;
 };
 
 type SimLayerProps = {
@@ -24,6 +41,12 @@ type SimLayerProps = {
   sim: React.ComponentType<SimProps>;
   /** Resting visual opacity of the background sim. */
   opacity?: number;
+  /** Constrain the sim to the section container width (not full-bleed). */
+  contained?: boolean;
+  /** User-editable parameters rendered as sliders in the info panel. */
+  controls?: SimControl[];
+  /** Render the sim in a centered square with a circular mask (radial sims). */
+  circleMask?: boolean;
 };
 
 /**
@@ -38,18 +61,28 @@ export function SimLayer({
   side = "right",
   sim: Sim,
   opacity = 0.55,
+  contained = false,
+  controls,
+  circleMask = false,
 }: SimLayerProps) {
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(wrapRef, 0.08);
   const [status, setStatus] = React.useState<SimStatus>({});
   const [open, setOpen] = React.useState(false);
+  const [params, setParams] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries((controls ?? []).map((c) => [c.key, c.default]))
+  );
 
   const positionClass =
     side === "left"
       ? "inset-y-0 left-0 w-[66%]"
       : side === "right"
       ? "inset-y-0 right-0 w-[66%]"
+      : circleMask
+      ? "inset-y-0 left-1/2 aspect-square -translate-x-1/2"
+      : contained
+      ? "inset-y-0 left-1/2 w-[92vw] max-w-[1160px] -translate-x-1/2"
       : "inset-0";
 
   // While the panel is open, brighten the sim so it reads clearly.
@@ -78,10 +111,12 @@ export function SimLayer({
     <div ref={wrapRef} className="absolute inset-0" aria-hidden>
       {/* background sim */}
       <div
-        className={`${side === "full" ? "sim-bg-full" : "sim-bg"} pointer-events-none absolute hidden lg:block ${positionClass}`}
+        className={`${
+          circleMask ? "sim-bg-circle" : side === "full" ? "sim-bg-full" : "sim-bg"
+        } pointer-events-none absolute hidden lg:block ${positionClass}`}
         style={{ opacity: liveOpacity, transition: "opacity 0.4s ease" }}
       >
-        <Sim running={onScreen} onStatus={setStatus} side={side} />
+        <Sim running={onScreen} onStatus={setStatus} side={side} params={params} />
       </div>
 
       {/* clickable chip + popover panel (top-right) */}
@@ -126,6 +161,46 @@ export function SimLayer({
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               {description}
             </p>
+
+            {controls && controls.length > 0 && (
+              <div className="mt-3 border-t border-border pt-3">
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                  controls
+                </p>
+                <div className="space-y-2.5">
+                  {controls.map((c) => (
+                    <label
+                      key={c.key}
+                      className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground"
+                    >
+                      <span className="w-20 shrink-0 truncate" title={c.label}>
+                        {c.label}
+                      </span>
+                      <input
+                        type="range"
+                        min={c.min}
+                        max={c.max}
+                        step={c.step ?? 1}
+                        value={params[c.key] ?? c.default}
+                        onChange={(e) =>
+                          setParams((prev) => ({
+                            ...prev,
+                            [c.key]: Number(e.target.value),
+                          }))
+                        }
+                        aria-label={c.label}
+                        className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-accent-1 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-1"
+                      />
+                      <span className="w-10 shrink-0 text-right text-foreground">
+                        {params[c.key] ?? c.default}
+                        {c.unit ?? ""}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-3 border-t border-border pt-3">
               <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                 live status

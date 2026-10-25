@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { Loader } from "lucide-react";
 import { profile } from "@/lib/data";
+import { ThemeMenus } from "@/components/sections/theme-menus";
+import { useLoading } from "@/components/loading-provider";
 
 const links = [
   { href: "#about", id: "about", label: "About" },
@@ -15,6 +18,7 @@ const links = [
 export function Navbar() {
   const [scrolled, setScrolled] = React.useState(false);
   const [active, setActive] = React.useState<string>("");
+  const { preview } = useLoading();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -77,24 +81,36 @@ export function Navbar() {
             </span>
           )}
         </a>
-        <div className="hidden items-center gap-1 md:flex">
-          {links.map((link) => {
-            const isActive = active === link.id;
-            return (
-              <a
-                key={link.href}
-                href={link.href}
-                aria-current={isActive ? "true" : undefined}
-                className={`nav-underline rounded-md px-3 py-2 text-sm transition-colors ${
-                  isActive
-                    ? "nav-active text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {link.label}
-              </a>
-            );
-          })}
+        <div className="hidden items-center gap-3 md:flex">
+          <div className="flex items-center gap-1">
+            {links.map((link) => {
+              const isActive = active === link.id;
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`nav-underline rounded-md px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "nav-active text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+          </div>
+          <ThemeMenus />
+          <button
+            type="button"
+            onClick={preview}
+            aria-label="Preview the cluster loading screen"
+            title="Preview loader"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Loader className="h-3.5 w-3.5" />
+          </button>
         </div>
       </nav>
     </header>

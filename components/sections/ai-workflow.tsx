@@ -4,7 +4,8 @@ import { SectionHeading } from "@/components/sections/section-heading";
 import { Reveal } from "@/components/motion/reveal";
 import { SkillBadge } from "@/components/motion/brand-logo";
 import { SimLayer } from "@/components/motion/sim-layer";
-import { HighWaterMarkSim } from "@/components/motion/sims/high-water-mark-sim";
+import { HighWaterMarkSim } from "@/components/motion/sims/lazy";
+import { hwmControls } from "@/lib/sim-controls";
 import { aiWorkflow } from "@/lib/data";
 
 export function AiWorkflow() {
@@ -18,7 +19,9 @@ export function AiWorkflow() {
         description="A leader appends entries to an ordered log; follower replicas replicate them and advance their own log-end offset (LEO). The high-water mark is the highest offset present on every in-sync replica (ISR) — entries at or below it are committed and safe to read. Replicas join (catching up from behind) and crash out of the ISR, so the HWM advances only as fast as the slowest in-sync follower."
         side="full"
         opacity={0.55}
+        contained
         sim={HighWaterMarkSim}
+        controls={hwmControls}
       />
       <div className="container relative z-10">
         <Reveal>
@@ -33,7 +36,7 @@ export function AiWorkflow() {
 
         <Reveal stagger className="grid gap-4 md:grid-cols-2">
           {aiWorkflow.groups.map((group) => (
-            <Card key={group.title} className="card-lift h-full">
+            <Card key={group.title} className="card-lift glass-strong h-full">
               <CardContent className="flex h-full flex-col p-6">
                 <div className="flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-md border border-accent-1/40 bg-accent-1/10">
