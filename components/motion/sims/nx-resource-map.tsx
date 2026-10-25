@@ -173,7 +173,7 @@ export function ResourceMap({ running, onStatus }: SimProps) {
         ctx.strokeStyle = rgba(col, 0.85);
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(b.x, b.y, b.w, b.h, 4);
+        ctx.roundRect(b.x, b.y, b.w, b.h, 0);
         ctx.fill();
         ctx.stroke();
         // label

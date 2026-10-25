@@ -223,7 +223,7 @@ export function LsmSim({ running, onStatus, params }: SimProps) {
         ctx.strokeStyle = rgba(col, 0.85 * appear + 0.1);
         ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.roundRect(s.x - segW / 2, s.y - laneSegH / 2, segW, laneSegH, 3);
+        ctx.roundRect(s.x - segW / 2, s.y - laneSegH / 2, segW, laneSegH, 0);
         ctx.fill();
         ctx.stroke();
       }

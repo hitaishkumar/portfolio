@@ -21,7 +21,7 @@
     --border: 240 6% 90%;
     --input: 240 6% 90%;
     --ring: 243 75% 59%;
-    --radius: 0.6rem;
+    --radius: 0rem;
 
     /* Accent gradient stops — distributed-systems palette */
     --accent-1: 243 75% 59%; /* indigo */
@@ -40,6 +40,22 @@
   }
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Vercel-like flat aesthetic — square corners everywhere. The fixed Tailwind
+   radius utilities don't read --radius, so neutralize them globally, including
+   pills/chips (rounded-full) for a fully uniform square UI. */
+@layer utilities {
+  .rounded-sm,
+  .rounded,
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-3xl,
+  .rounded-full {
+    border-radius: 0 !important;
   }
 }
 
