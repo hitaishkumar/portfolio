@@ -50,6 +50,9 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
     let width = 0;
     let height = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // target number of replicas (incl. leader) so columns tile the full width
+    let targetReplicas = 8;
+    const COL_W = 42; // desired column width — drives how many replicas we show
 
     // --- model state ---
     let nextId = 0;
@@ -96,9 +99,10 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       replicas = [makeLeader()];
       replicas[0].leo = leaderLeo;
       replicas[0].target = leaderLeo;
-      // start with 3 in-sync followers
-      for (let i = 0; i < 3; i++) {
-        const f = makeFollower(leaderLeo - 1 - Math.floor(Math.random() * 2));
+      // start mostly full so columns span the width immediately
+      const seed = Math.max(5, targetReplicas - 2);
+      for (let i = 0; i < seed; i++) {
+        const f = makeFollower(leaderLeo - 1 - Math.floor(Math.random() * 3));
         f.life = 1;
         f.state = "insync";
         replicas.push(f);
@@ -116,6 +120,8 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // how many columns fill ~96% of the width at the desired column width
+      targetReplicas = Math.max(6, Math.round((width * 0.96) / COL_W));
     }
     resize();
     init();
@@ -206,19 +212,24 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       // drop fully-faded leavers
       replicas = replicas.filter((r) => !(r.state === "leaving" && r.life <= 0));
 
-      // 5) membership churn: periodic join / leave
+      // 5) membership churn: keep the cluster near the width-derived target,
+      //    with constant join/leave activity around it.
       membershipAcc += dt;
-      if (membershipAcc > 2.6) {
+      if (membershipAcc > 1.6) {
         membershipAcc = 0;
-        const followers = replicas.filter((r) => r.state !== "leader");
-        const alive = followers.filter((r) => r.state !== "leaving");
-        // bias: if few replicas, join; if many, allow a leave
-        const wantJoin = alive.length < 3 || (alive.length < 6 && Math.random() < 0.6);
+        const alive = replicas.filter(
+          (r) => r.state !== "leader" && r.state !== "leaving"
+        );
+        const total = alive.length + 1; // + leader
+        // below target → bias toward joining; at/above → bias toward leaving
+        const deficit = targetReplicas - total;
+        const wantJoin =
+          deficit > 0 && (deficit >= 2 || Math.random() < 0.75);
         if (wantJoin) {
           const f = makeFollower(Math.max(0, leaderLeo - WINDOW + 2));
           replicas.push(f);
           joins++;
-        } else if (alive.length > 2 && Math.random() < 0.7) {
+        } else if (alive.length > 2 && Math.random() < 0.5) {
           // crash a random non-leader follower
           const victim = alive[Math.floor(Math.random() * alive.length)];
           victim.state = "leaving";
@@ -234,12 +245,12 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       const p = palette.current;
 
       // Vertical layout: offsets run TOP → BOTTOM (y axis); each replica is a
-      // COLUMN laid out left → right (x axis). The whole block is centered
-      // vertically in the section.
+      // COLUMN laid out left → right (x axis). Columns tile the full width.
       const n = Math.max(1, replicas.length);
-      const colW = Math.min(58, (width * 0.84) / Math.max(5, n));
-      const blockW = colW * n;
-      const originX = width / 2 - blockW / 2; // center columns horizontally too
+      const sideMargin = width * 0.03;
+      const blockW = width - sideMargin * 2;
+      const colW = blockW / n; // columns fill the available width
+      const originX = sideMargin;
       const labelH = 22; // space above columns for replica labels
 
       // vertical offset track
@@ -264,8 +275,8 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         ctx.setLineDash([]);
         ctx.fillStyle = rgba(p.accent1, 0.9);
         ctx.font = "600 10px ui-monospace, monospace";
-        ctx.textAlign = "left";
-        ctx.fillText("HWM", originX + blockW + 16, hwmY + 3);
+        ctx.textAlign = "right";
+        ctx.fillText("HWM", originX + blockW - 4, hwmY - 4);
       }
 
       // --- leader LEO horizontal marker ---
@@ -280,8 +291,8 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       ctx.setLineDash([]);
       ctx.fillStyle = rgba(p.accent2, 0.75);
       ctx.font = "600 10px ui-monospace, monospace";
-      ctx.textAlign = "left";
-      ctx.fillText("LEO", originX + blockW + 16, leoY + 3);
+      ctx.textAlign = "right";
+      ctx.fillText("LEO", originX + blockW - 4, leoY - 4);
 
       // --- replica columns ---
       replicas.forEach((r, idx) => {
@@ -290,13 +301,6 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         if (a <= 0.01) return;
 
         const isLeader = r.state === "leader";
-        const label = isLeader
-          ? `leader`
-          : r.state === "catchup"
-          ? `R${r.id} ↻`
-          : r.state === "leaving"
-          ? `R${r.id} ✕`
-          : `R${r.id}`;
         const labelCol =
           r.state === "leaving"
             ? p.muted
@@ -305,29 +309,36 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
             : r.state === "catchup"
             ? p.accent3
             : p.fg;
-        // column header label
+        // column header label — compact so it fits a narrow column
         ctx.fillStyle = rgba(labelCol, 0.85 * a);
-        ctx.font = `${isLeader ? "700" : "500"} 10px ui-monospace, monospace`;
+        ctx.font = `${isLeader ? "700" : "500"} 9px ui-monospace, monospace`;
         ctx.textAlign = "center";
-        ctx.fillText(label, x + colW * 0.5, topY - 8);
+        const shortLabel = isLeader
+          ? "L"
+          : r.state === "catchup"
+          ? `${r.id}↻`
+          : r.state === "leaving"
+          ? `${r.id}✕`
+          : `${r.id}`;
+        ctx.fillText(shortLabel, x + colW * 0.5, topY - 8);
 
         // vertical stack of log cells
         const upto = Math.round(r.target);
-        const cw = colW - 4; // cell width within the column
+        const cw = Math.max(3, colW - 3); // cell width within the column
         for (let off = originOffset; off <= leaderLeo; off++) {
           const y = yForOffset(off);
           const present = off <= upto;
           const committed = off <= hwm;
-          // cell frame
-          ctx.strokeStyle = rgba(p.border, 0.5 * a);
+          // cell frame (light so it doesn't darken text above it)
+          ctx.strokeStyle = rgba(p.border, 0.35 * a);
           ctx.lineWidth = 0.6;
-          ctx.strokeRect(x + 2, y, cw, cellH - 1.5);
+          ctx.strokeRect(x + 1.5, y, cw, cellH - 1.5);
           if (!present) continue;
           let fill: [number, number, number] = committed ? p.accent1 : p.muted;
-          let alpha = committed ? 0.3 : 0.16;
+          let alpha = committed ? 0.17 : 0.09;
           if (isLeader) {
             fill = committed ? p.accent1 : p.accent2;
-            alpha = committed ? 0.32 : 0.2;
+            alpha = committed ? 0.2 : 0.12;
           }
           ctx.fillStyle = rgba(fill, alpha * a);
           ctx.fillRect(x + 2.6, y + 0.6, cw - 1.2, cellH - 2.6);
