@@ -17,7 +17,7 @@ export function AiWorkflow() {
         algo="High-Water Mark"
         description="A leader appends entries to an ordered log; follower replicas replicate them and advance their own log-end offset (LEO). The high-water mark is the highest offset present on every in-sync replica (ISR) — entries at or below it are committed and safe to read. Replicas join (catching up from behind) and crash out of the ISR, so the HWM advances only as fast as the slowest in-sync follower."
         side="full"
-        opacity={0.5}
+        opacity={0.55}
         sim={HighWaterMarkSim}
       />
       <div className="container relative z-10">

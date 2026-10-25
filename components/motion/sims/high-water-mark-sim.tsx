@@ -233,59 +233,62 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
       ctx.clearRect(0, 0, width, height);
       const p = palette.current;
 
-      const padL = width * 0.08;
-      const padR = width * 0.06;
-      const logW = width - padL - padR;
-      const cell = logW / WINDOW;
-      const originOffset = Math.max(0, leaderLeo - WINDOW + 1); // leftmost visible offset
+      // Vertical layout: offsets run TOP → BOTTOM (y axis); each replica is a
+      // COLUMN laid out left → right (x axis). The whole block is centered
+      // vertically in the section.
+      const n = Math.max(1, replicas.length);
+      const colW = Math.min(58, (width * 0.84) / Math.max(5, n));
+      const blockW = colW * n;
+      const originX = width / 2 - blockW / 2; // center columns horizontally too
+      const labelH = 22; // space above columns for replica labels
 
-      const rowH = Math.min(46, (height * 0.82) / Math.max(4, replicas.length));
-      const topY = height * 0.12;
-      const cellH = Math.min(20, rowH * 0.5);
+      // vertical offset track
+      const cellH = Math.min(16, (height * 0.7) / WINDOW);
+      const logH = cellH * WINDOW;
+      const topY = (height - logH) / 2 + labelH * 0.5; // vertically centered
+      const originOffset = Math.max(0, leaderLeo - WINDOW + 1); // topmost visible offset
 
-      const xForOffset = (off: number) =>
-        padL + (off - originOffset) * cell;
+      const yForOffset = (off: number) => topY + (off - originOffset) * cellH;
+      const xForCol = (idx: number) => originX + idx * colW;
 
-      // --- HWM vertical marker (committed boundary) ---
-      const hwmX = xForOffset(hwm) + cell;
+      // --- HWM horizontal marker (committed boundary) ---
+      const hwmY = yForOffset(hwm) + cellH;
       if (hwm >= originOffset) {
         ctx.strokeStyle = rgba(p.accent1, 0.55);
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(hwmX, topY - 10);
-        ctx.lineTo(hwmX, topY + replicas.length * rowH + 2);
+        ctx.moveTo(originX - 12, hwmY);
+        ctx.lineTo(originX + blockW + 12, hwmY);
         ctx.stroke();
         ctx.setLineDash([]);
-        // label
         ctx.fillStyle = rgba(p.accent1, 0.9);
         ctx.font = "600 10px ui-monospace, monospace";
         ctx.textAlign = "left";
-        ctx.fillText("HWM", hwmX + 4, topY - 14);
+        ctx.fillText("HWM", originX + blockW + 16, hwmY + 3);
       }
 
-      // leader LEO marker
-      const leoX = xForOffset(leaderLeo) + cell;
+      // --- leader LEO horizontal marker ---
+      const leoY = yForOffset(leaderLeo) + cellH;
       ctx.strokeStyle = rgba(p.accent2, 0.4);
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
-      ctx.moveTo(leoX, topY - 10);
-      ctx.lineTo(leoX, topY + replicas.length * rowH + 2);
+      ctx.moveTo(originX - 12, leoY);
+      ctx.lineTo(originX + blockW + 12, leoY);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = rgba(p.accent2, 0.75);
       ctx.font = "600 10px ui-monospace, monospace";
-      ctx.textAlign = "right";
-      ctx.fillText("LEO", leoX - 4, topY - 14);
+      ctx.textAlign = "left";
+      ctx.fillText("LEO", originX + blockW + 16, leoY + 3);
 
-      // --- replica rows ---
+      // --- replica columns ---
       replicas.forEach((r, idx) => {
-        const y = topY + idx * rowH;
+        const x = xForCol(idx);
         const a = r.life;
         if (a <= 0.01) return;
 
-        // row label
         const isLeader = r.state === "leader";
         const label = isLeader
           ? `leader`
@@ -302,23 +305,24 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
             : r.state === "catchup"
             ? p.accent3
             : p.fg;
+        // column header label
         ctx.fillStyle = rgba(labelCol, 0.85 * a);
-        ctx.font = `${isLeader ? "700" : "500"} 11px ui-monospace, monospace`;
-        ctx.textAlign = "right";
-        ctx.fillText(label, padL - 8, y + cellH * 0.8);
+        ctx.font = `${isLeader ? "700" : "500"} 10px ui-monospace, monospace`;
+        ctx.textAlign = "center";
+        ctx.fillText(label, x + colW * 0.5, topY - 8);
 
-        // log cells
+        // vertical stack of log cells
         const upto = Math.round(r.target);
+        const cw = colW - 4; // cell width within the column
         for (let off = originOffset; off <= leaderLeo; off++) {
-          const x = xForOffset(off);
+          const y = yForOffset(off);
           const present = off <= upto;
           const committed = off <= hwm;
           // cell frame
           ctx.strokeStyle = rgba(p.border, 0.5 * a);
           ctx.lineWidth = 0.6;
-          ctx.strokeRect(x, y, cell - 1.5, cellH);
+          ctx.strokeRect(x + 2, y, cw, cellH - 1.5);
           if (!present) continue;
-          // filled cell — committed vs dirty
           let fill: [number, number, number] = committed ? p.accent1 : p.muted;
           let alpha = committed ? 0.3 : 0.16;
           if (isLeader) {
@@ -326,26 +330,26 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
             alpha = committed ? 0.32 : 0.2;
           }
           ctx.fillStyle = rgba(fill, alpha * a);
-          ctx.fillRect(x + 0.6, y + 0.6, cell - 2.6, cellH - 1.2);
-          // the freshly-appended head entry gets a crisp edge
+          ctx.fillRect(x + 2.6, y + 0.6, cw - 1.2, cellH - 2.6);
+          // crisp edge on the leader's freshly-appended head entry
           if (off === upto && off === leaderLeo && isLeader) {
             ctx.strokeStyle = rgba(p.accent2, 0.8 * a);
             ctx.lineWidth = 1.2;
-            ctx.strokeRect(x + 0.6, y + 0.6, cell - 2.6, cellH - 1.2);
+            ctx.strokeRect(x + 2.6, y + 0.6, cw - 1.2, cellH - 2.6);
           }
         }
 
-        // catch-up progress bar under the row
+        // vertical catch-up progress bar beside the column
         if (r.state === "catchup") {
           const prog = leaderLeo > 0 ? r.leo / leaderLeo : 0;
           ctx.fillStyle = rgba(p.accent3, 0.5 * a);
-          ctx.fillRect(padL, y + cellH + 3, logW * prog, 1.5);
+          ctx.fillRect(x + colW - 2, topY, 1.5, logH * prog);
         }
 
-        // crash X overlay
+        // crash X overlay (centered on the column)
         if (r.state === "leaving") {
-          const cx = padL + logW * 0.5;
-          const cy = y + cellH * 0.5;
+          const cx = x + colW * 0.5;
+          const cy = topY + logH * 0.5;
           const s = 7;
           ctx.strokeStyle = rgba(p.muted, 0.7 * a);
           ctx.lineWidth = 1.4;
@@ -358,17 +362,16 @@ export function HighWaterMarkSim({ running, onStatus }: SimProps) {
         }
       });
 
-      // --- replication packets (leader row → follower rows) ---
+      // --- replication packets (leader column → follower columns) ---
       const leaderIdx = replicas.findIndex((r) => r.state === "leader");
-      const leaderY = topY + (leaderIdx < 0 ? 0 : leaderIdx) * rowH + cellH * 0.5;
+      const leaderX = xForCol(leaderIdx < 0 ? 0 : leaderIdx) + colW * 0.5;
       for (const pk of packets) {
         const r = replicas[pk.to];
         if (!r || r.life <= 0.05) continue;
-        const destY = topY + pk.to * rowH + cellH * 0.5;
-        const x = xForOffset(pk.offset) + cell * 0.5;
-        const startX = leoX - cell * 0.5;
-        const px = startX + (x - startX) * pk.t;
-        const py = leaderY + (destY - leaderY) * pk.t;
+        const destX = xForCol(pk.to) + colW * 0.5;
+        const y = yForOffset(pk.offset) + cellH * 0.5;
+        const px = leaderX + (destX - leaderX) * pk.t;
+        const py = y; // entries land at their own offset row
         ctx.fillStyle = rgba(p.accent2, 0.9 * r.life);
         ctx.beginPath();
         ctx.arc(px, py, 2.2, 0, Math.PI * 2);
